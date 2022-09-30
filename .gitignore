@@ -1,0 +1,13 @@
+#Gradle beginning
+.gradle
+**/build/
+/out/
+*.txt
+#Idea Begginning
+.idea/
+*.iml
+out/
+gen/
+build/
+#Maven beginning
+target/
