@@ -1,3 +1,5 @@
+package lex;
+
 public class Token {
     private TokenType type;
     private int lineNum;

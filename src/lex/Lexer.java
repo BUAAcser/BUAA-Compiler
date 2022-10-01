@@ -1,3 +1,5 @@
+package lex;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 

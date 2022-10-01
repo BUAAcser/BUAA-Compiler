@@ -1,3 +1,5 @@
+package lex;
+
 public enum TokenType {
     IDENFR,
     INTCON,

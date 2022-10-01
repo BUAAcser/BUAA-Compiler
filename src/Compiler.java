@@ -1,3 +1,7 @@
+import lex.Lexer;
+import lex.Source;
+import lex.Token;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
