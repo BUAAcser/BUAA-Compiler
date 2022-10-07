@@ -6,10 +6,16 @@ import java.util.HashMap;
 public class Lexer {
     private Source source;
     private HashMap<String, TokenType> types;
+    private ArrayList<Token> tokens;
+    private int index;
+    private int length;
 
     public Lexer(Source source) {
         this.source = source;
         initTypes();
+        this.tokens = lexical();
+        this.index = 0;
+        this.length = tokens.size();
     }
 
     private void initTypes() {
@@ -158,5 +164,68 @@ public class Lexer {
 
     public boolean judgeIdentStart(char s) {
         return Character.isLetter(s) || s == '_';
+    }
+
+    public boolean hasNextToken() {
+        return (index < length);
+    }
+
+    public Token getNextToken() {
+        Token token = tokens.get(index);
+        index++;
+        return token;
+    }
+
+    public Token visitNextToken() {
+        return tokens.get(index);
+    }
+
+    public Token visitNext2Token() {
+        Token token = null;
+        if (index + 1 < length) {
+            token = tokens.get(index + 1);
+        }
+        return token;
+    }
+
+    public Token visitNext3Token() {
+        Token token = null;
+        if (index + 2 < length) {
+            token = tokens.get(index + 2);
+        }
+        return token;
+    }
+
+    public int getNowIndex() {
+        return index;
+    }
+
+    public void backIndex(int index) {
+        this.index = index;
+    }
+
+    public boolean judgeHasSemi() {
+        boolean res = false;
+        for (int i = index; i < length; i++) {
+            if (tokens.get(i).getType() == TokenType.SEMICN) {
+                res = true;
+                break;
+            }
+        }
+        return res;
+    }
+
+    public boolean meetAssignFirst() {
+        boolean res = false;
+        boolean meetSemi = false;
+        for (int i = index; i < length && !meetSemi; i++) {
+            if (tokens.get(i).getType() == TokenType.ASSIGN) {
+                res = true;
+                break;
+            } else if (tokens.get(i).getType() == TokenType.SEMICN) {
+                meetSemi = true;
+            }
+        }
+        return res;
     }
 }

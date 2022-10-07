@@ -1,6 +1,7 @@
 import lex.Lexer;
 import lex.Source;
 import lex.Token;
+import parse.Parser;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -12,7 +13,7 @@ public class Compiler {
     public static void main(String[] argv) {
         Source source = new Source();
         Lexer lexer = new Lexer(source);
-        ArrayList<Token> tokens = lexer.lexical();
+
 
         File file = new File("output.txt");
         if (!file.exists()) {
@@ -30,14 +31,15 @@ public class Compiler {
         }
         BufferedWriter bw = new BufferedWriter(fw);
 
-        for (Token token : tokens) {
-            String str = token.getType() + " " + token.getContent() + "\n";
-            try {
-                bw.write(str);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        Parser parser = new Parser(lexer, bw);
+
+//        for (String str : strings) {
+//            try {
+//                bw.write(str);
+//            } catch (IOException e) {
+//                throw new RuntimeException(e);
+//            }
+//        }
 
         try {
             bw.close();
