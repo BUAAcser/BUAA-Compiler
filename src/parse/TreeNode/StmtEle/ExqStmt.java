@@ -9,4 +9,8 @@ public class ExqStmt extends Stmt {
     public ExqStmt(Exp exp) {
         this.exp = exp;
     }
+
+    public Exp getExp() {
+        return exp;
+    }
 }

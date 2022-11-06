@@ -10,4 +10,13 @@ public class Decl implements BlockItem {
         this.type = type;
         this.defs = defs;
     }
+
+    public ArrayList<Def> getDefs() {
+        return defs;
+    }
+
+    public DeclType getDeclType() {
+        return type;
+    }
+
 }

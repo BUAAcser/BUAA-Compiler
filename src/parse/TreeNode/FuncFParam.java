@@ -12,4 +12,16 @@ public class FuncFParam {
         this.dimension = dimension;
         this.constExp = constExp;
     }
+
+    public int getDimension() {
+        return dimension;
+    }
+
+    public Exp getConstExp() {
+        return constExp;
+    }
+
+    public String getName() {
+        return ident.getContent();
+    }
 }

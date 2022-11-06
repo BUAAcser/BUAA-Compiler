@@ -22,22 +22,26 @@ public class Parser {
         compUnit = parseCompUnit();
     }
 
+    public CompUnit getCompUnit() {
+        return this.compUnit;
+    }
+
     public void printStream(String str) {
-        try {
-            bf.write(str);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+//        try {
+//            bf.write(str);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
     }
 
     public Token getNextToken() {
         Token token = lexer.getNextToken();
         String str = token.getType() + " " + token.getContent() + "\n";
-        try {
-            bf.write(str);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+//        try {
+//            bf.write(str);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
         return token;
     }
 

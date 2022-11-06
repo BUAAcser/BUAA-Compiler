@@ -9,4 +9,7 @@ public class Block extends Stmt {
         this.items = items;
     }
 
+    public ArrayList<BlockItem> getItems() {
+        return items;
+    }
 }

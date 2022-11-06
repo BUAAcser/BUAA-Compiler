@@ -16,4 +16,25 @@ public class FuncDef {
         this.funcParams = funcParams;
         this.block = block;
     }
+
+    public String getName() {
+        return ident.getContent();
+    } // 得到函数名称
+
+    public FuncType getType() {
+        return type;
+    }
+
+    public ArrayList<FuncFParam> getFuncParams() {
+        if (funcParams != null) {
+            return funcParams.getFParams();
+        } else {
+            return  new ArrayList<FuncFParam>();
+        }
+
+    }
+
+    public Block getBlock() {
+        return block;
+    }
 }

@@ -1,6 +1,8 @@
 package parse.TreeNode;
 
 import lex.Token;
+import lex.TokenType;
+import symbol.SymbolTable;
 
 import java.util.ArrayList;
 
@@ -17,6 +19,7 @@ public class UnaryExp {
         this.funcRparams = null;
     }
 
+    //// 以下两种创建创建方式对应的是函数有参和无参
     public UnaryExp(ArrayList<Token> operators, Token func, FuncRParams funcRparams) {
         this.operators = operators;
         this.primaryExp = null;
@@ -31,4 +34,30 @@ public class UnaryExp {
         this.funcRparams = null;
     }
 
+    public int calcConst(SymbolTable symbolTable) {
+        int coe = 1;
+        for (Token operator : operators) {
+            if (operator.getType() == TokenType.MINU) {
+                coe = coe * (-1);
+            }
+        }
+        int result = coe * primaryExp.calcConst(symbolTable);
+        return result;
+    } // 求解global变量中不会出现函数
+
+    public PrimaryExp getPrimaryExp() {
+        return primaryExp;
+    }
+
+    public Token getFunc() {
+        return func;
+    }
+
+    public FuncRParams getFuncRparams() {
+        return funcRparams;
+    }
+
+    public ArrayList<Token> getOperators() {
+        return operators;
+    }
 }

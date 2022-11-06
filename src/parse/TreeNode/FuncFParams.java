@@ -8,4 +8,8 @@ public class FuncFParams {
     public FuncFParams(ArrayList<FuncFParam> params) {
         this.params = params;
     }
+
+    public ArrayList<FuncFParam> getFParams() {
+        return params;
+    }
 }

@@ -6,4 +6,8 @@ public class MainFuncDef {
     public MainFuncDef(Block block) {
         this.block = block;
     }
+
+    public Block getBlock() {
+        return this.block;
+    }
 }

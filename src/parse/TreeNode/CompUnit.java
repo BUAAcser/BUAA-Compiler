@@ -13,4 +13,16 @@ public class CompUnit {
         this.mainFuncDef = main;
     }
 
+    public ArrayList<Decl> getDecls() {
+        return decls;
+    }
+
+    public ArrayList<FuncDef> getFuncDefs() {
+        return funcDefs;
+    }
+
+    public MainFuncDef getMain() {
+        return mainFuncDef;
+    }
+
 }

@@ -12,4 +12,12 @@ public class AssignStmt extends Stmt {
         this.lval = lval;
         this.exp = exp;
     }
+
+    public Lval getLval() {
+        return lval;
+    }
+
+    public Exp getExp() {
+        return exp;
+    }
 }

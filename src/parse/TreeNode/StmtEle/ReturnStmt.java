@@ -14,4 +14,8 @@ public class ReturnStmt extends Stmt {
         this.exp = null;
     }
 
+    public Exp getExp() {
+        return exp;
+    }
+
 }

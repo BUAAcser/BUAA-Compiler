@@ -15,4 +15,12 @@ public class PrintfStmt extends Stmt {
         this.exps = exps;
     }
 
+    public String getContent() {
+        return str.getContent();
+    }
+
+    public ArrayList<Exp> getExps() {
+        return exps;
+    }
+
 }
