@@ -6,4 +6,8 @@ public class Cond {
     public Cond(LorExp lorExp) {
         this.lorExp = lorExp;
     }
+
+    public LorExp getLorExp() {
+        return lorExp;
+    }
 }

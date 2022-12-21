@@ -4,10 +4,7 @@ import lex.Pair;
 import lex.Token;
 import lex.TokenType;
 import parse.TreeNode.Number;
-import parse.TreeNode.StmtEle.AssignStmt;
-import parse.TreeNode.StmtEle.ExqStmt;
-import parse.TreeNode.StmtEle.PrintfStmt;
-import parse.TreeNode.StmtEle.ReturnStmt;
+import parse.TreeNode.StmtEle.*;
 import symbol.*;
 import parse.TreeNode.*;
 
@@ -26,6 +23,10 @@ public class Visitor {
     private LabelCounter labelCounter;
     private TempCounter tempCounter;
     private StringCounter strCounter;
+    private WhileCounter whileCounter;
+    private IfCounter ifCounter;
+    private int loopNum;
+    private ArrayList<WhileLabels> whileLabelsList;
     private ArrayList<String> strs;
 
     private Function curFunction;
@@ -44,6 +45,10 @@ public class Visitor {
         this.labelCounter = new LabelCounter();
         this.tempCounter = new TempCounter();
         this.strCounter = new StringCounter();
+        this.whileCounter = new WhileCounter();
+        this.ifCounter = new IfCounter();
+        this.loopNum = -1;
+        this.whileLabelsList = new ArrayList<>();
         this.strs = new ArrayList<>();
         strs.add("\\n");
 
@@ -96,11 +101,11 @@ public class Visitor {
         visitCompUnit(compUnit); // TODO MORE
     }
 
-    public void allocateBasicBlock() {
-        int num = labelCounter.allocate();
-        BasicBlock block = new BasicBlock(num);
-        curBlock = block; // 再Allocate时已经将curBlock切换了
-    }
+//    public void allocateBasicBlock() {
+//        int num = labelCounter.allocate();
+//        BasicBlock block = new BasicBlock(num);
+//        curBlock = block; // 再Allocate时已经将curBlock切换了
+//    }
 
     public String allocateTemp() {
         String tempName = tempCounter.allocateTemp();
@@ -192,7 +197,8 @@ public class Visitor {
         this.curFunction = function;
         addressCounter.clear();  // 地址偏移清0
         curTable = new SymbolTable(SymbolTableType.Local, tableCounter.allocate(),globalSymbolTable);
-        curBlock = new BasicBlock(labelCounter.allocate());
+        String label = "L" + labelCounter.allocate();
+        curBlock = new BasicBlock(label);
         /// 预处理工作
 
         FuncType funcType = funcDef.getType();
@@ -238,7 +244,8 @@ public class Visitor {
         this.curFunction = main;
         addressCounter.clear();  // 地址偏移清0
         curTable = new SymbolTable(SymbolTableType.Local, tableCounter.allocate(),globalSymbolTable);
-        curBlock = new BasicBlock(labelCounter.allocate());
+        String label = "L" + labelCounter.allocate();
+        curBlock = new BasicBlock(label);
 
         Block block = mainFuncDef.getBlock();
         visitBlock(block);
@@ -639,6 +646,179 @@ public class Visitor {
         return new Pair<>(result, value);
     }
 
+    public void visitCondForWhile(Cond cond, int no) {
+        LorExp lorExp = cond.getLorExp();
+        visitLorExpForWhile(lorExp, no);
+    }
+
+    public void visitCondForIf(Cond cond, int no, boolean hasElse) {
+
+    }
+
+    public void visitLorExpForWhile(LorExp lorExp, int whileNo) {
+        ArrayList<LandExp> landExps = lorExp.getLandExps();
+        for (int i = 0; i < landExps.size(); i++) {
+            if (i == landExps.size() - 1) {
+                visitLandExpForWhile(landExps.get(i), true, i, 0, whileNo); // TODO
+            } else {
+                visitLandExpForWhile(landExps.get(i), false, i, (i + 1), whileNo);
+            }
+        }
+    }
+
+
+
+
+    public void visitLandExpForWhile(LandExp landExp, boolean isLast, int curNo, int nextNo, int whileNo) {
+        ArrayList<EqExp> eqExps = landExp.getEqExps();
+        if (!isLast) {
+            String label = "while" + whileNo + "_or_" + (nextNo);
+            // 当前OR中有一个And条件不满足，直接转跳下一个OR
+            for (int i = 0; i < eqExps.size(); i++) {
+                String resTemp = visitEqExp(eqExps.get(i));
+                Ir ir = new JPF(resTemp, label);
+                curBlock.insertIr(ir);
+                curFunction.addBasicBlock(curBlock);
+                if (i < eqExps.size() - 1) {
+                    String label1 = "while" + whileNo + "_or_" + curNo + "_and_" + (i + 1);
+                    curBlock = new BasicBlock(label1);
+                } else {
+                    String jumpLabel = "L" + labelCounter.allocate();
+                    curBlock = new BasicBlock(jumpLabel);
+                    String runStmt = "while" + whileNo + "_begin";
+                    Ir jir = new Jump(runStmt);
+                    curBlock.insertIr(jir);
+                    curFunction.addBasicBlock(curBlock);
+                    curBlock = new BasicBlock(label);
+                }
+            }
+        } else {
+            String label = "while" + whileNo + "_end"; //   最后一个Or条件不满足，直接跳转while尾部
+            for (int i = 0; i < eqExps.size(); i++) {
+
+                String resTemp = visitEqExp(eqExps.get(i));
+                Ir ir = new JPF(resTemp, label);
+                curBlock.insertIr(ir);
+                curFunction.addBasicBlock(curBlock);
+
+                if (i < eqExps.size() - 1) {
+                    String label1 = "while" + whileNo + "_or_" + curNo + "_and_" + (i + 1);
+                    curBlock = new BasicBlock(label1);
+                } else {
+                    String runStmt = "while" + whileNo + "_begin";
+                    curBlock = new BasicBlock(runStmt);
+                }
+            }
+        }
+    }
+
+    public void visitLandExpForIf(LandExp landExp, boolean isLast, int curNo, int nextNo, int ifNo
+        ,boolean hasElse) {
+        ArrayList<EqExp> eqExps = landExp.getEqExps();
+        if (!isLast) {
+            String label = "if" + ifNo + "_or_" + (nextNo);
+            // 当前OR中有一个And条件不满足，直接转跳下一个OR
+            for (int i = 0; i < eqExps.size(); i++) {
+                String resTemp = visitEqExp(eqExps.get(i));
+                Ir ir = new JPF(resTemp, label);
+                curBlock.insertIr(ir);
+                curFunction.addBasicBlock(curBlock);
+                if (i < eqExps.size() - 1) {
+                    String label1 = "if" + ifNo + "_or_" + curNo + "_and_" + (i + 1);
+                    curBlock = new BasicBlock(label1);
+                } else {
+                    String jumpLabel = "L" + labelCounter.allocate();
+                    curBlock = new BasicBlock(jumpLabel);
+                    String beginLabel = "if" + ifNo + "_begin";
+                    Ir jir = new Jump(beginLabel);
+                    curBlock.insertIr(jir);
+                    curFunction.addBasicBlock(curBlock);
+                    curBlock = new BasicBlock(label);
+                }
+            }
+        } else {
+            String label;
+            if (hasElse) {
+                label = "if" + ifNo + "_else";
+            } else {
+                label = "if" + ifNo + "_end"; //   最后一个Or条件不满足，直接跳转while尾部
+            }
+            for (int i = 0; i < eqExps.size(); i++) {
+
+                String resTemp = visitEqExp(eqExps.get(i));
+                Ir ir = new JPF(resTemp, label);
+                curBlock.insertIr(ir);
+                curFunction.addBasicBlock(curBlock);
+
+                if (i < eqExps.size() - 1) {
+                    String label1 = "if" + ifNo + "_or_" + curNo + "_and_" + (i + 1);
+                    curBlock = new BasicBlock(label1);
+                } else {
+                    String runStmt = "if" + ifNo + "_begin";
+                    curBlock = new BasicBlock(runStmt);
+                }
+            }
+        }
+    }
+
+    public String visitEqExp(EqExp eqExp) {
+        RelExp firsRelExp = eqExp.getFirst();
+        ArrayList<Token> operators = eqExp.getOperators();
+        ArrayList<RelExp> relExps = eqExp.getRelExps();
+        String nowResult = visitRelExp(firsRelExp);
+        if (operators.size() == 0) {
+            return nowResult;
+        } else {
+            for (int i = 0; i < operators.size(); i++) {
+                Token op = operators.get(i);
+                RelExp relExp = relExps.get(i);
+                String temp = allocateTemp();
+                String operand2 = visitRelExp(relExp);
+                if (op.getType() == TokenType.EQL) {
+                    Equal equal = new Equal(temp, nowResult, operand2);
+                    curBlock.insertIr(equal);
+                } else {
+                    NotEqual notEqual = new NotEqual(temp, nowResult, operand2);
+                    curBlock.insertIr(notEqual);
+                }
+                nowResult = temp;
+            }
+            return nowResult;
+        }
+    }
+
+    public String visitRelExp(RelExp relExp) {
+        AddExp firstAddExp = relExp.getFirst();
+        ArrayList<Token> operators = relExp.getOperators();
+        ArrayList<AddExp> addExps = relExp.getAddExps();
+        String nowResult = visitAddExp(firstAddExp);
+        if (operators.size() == 0) {
+            return nowResult;
+        } else {
+            for (int i = 0; i < operators.size(); i++) {
+                Token op = operators.get(i);
+                AddExp addExp = addExps.get(i);
+                String temp = allocateTemp();
+                String operand2 = visitAddExp(addExp);
+                if (op.getType() == TokenType.LSS) {
+                    Less less = new Less(temp, nowResult, operand2);
+                    curBlock.insertIr(less);
+                } else if (op.getType() == TokenType.LEQ) {
+                    LessEqual lessEqual = new LessEqual(temp, nowResult, operand2);
+                    curBlock.insertIr(lessEqual);
+                } else if (op.getType() == TokenType.GRE) {
+                    Great great = new Great(temp, nowResult, operand2);
+                    curBlock.insertIr(great);
+                } else {
+                    GreatEqual greatEqual = new GreatEqual(temp, nowResult, operand2);
+                    curBlock.insertIr(greatEqual);
+                }
+                nowResult = temp;
+            }
+            return nowResult;
+        }
+    }
+
     public void visitStmt(Stmt stmt) {
         if (stmt instanceof AssignStmt) {
             visitAssignStmt((AssignStmt)stmt);
@@ -654,7 +834,105 @@ public class Visitor {
             visitReturnStmt((ReturnStmt) stmt);
         } else if (stmt instanceof PrintfStmt) {
             visitPrintfStmt((PrintfStmt)stmt);
+        } else if (stmt instanceof WhileStmt) {
+            visitWhileStmt((WhileStmt) stmt);
+        } else if (stmt instanceof ContinueStmt) {
+            visitContinueStmt();
+        } else if (stmt instanceof BreakStmt) {
+            visitBreakStmt();
+        } else if (stmt instanceof IfStmt) {
+
         }
+    }
+
+    public void visitIfStmt(IfStmt ifStmt) {
+        int no = ifCounter.allocate();
+        String starLabel;
+        if (curBlock.judgeIsEmpty()) {
+            starLabel = curBlock.getLabelName();
+        } else {
+            curFunction.addBasicBlock(curBlock);
+            starLabel = "if" + no + "_or_0";
+            curBlock = new BasicBlock(starLabel);
+        }
+        boolean hasElse = (ifStmt.getElseStmt() != null);
+
+        String beginLabel = "if" + no + "_begin";
+        String elseLabel = "if" + no + "_else";
+        String endLabel = "if" + no + "_end";
+
+        Cond cond = ifStmt.getCond();
+        visitCondForIf(cond, no, hasElse);
+
+        Stmt ifStmtBlock = ifStmt.getIfStmt();
+        visitStmt(ifStmtBlock);
+
+        if (hasElse) {
+            Ir ir = new Jump(endLabel);
+            curBlock.insertIr(ir);
+            curFunction.addBasicBlock(curBlock);
+            curBlock = new BasicBlock(elseLabel);
+            Stmt elseStmtBlock = ifStmt.getElseStmt();
+            visitStmt(elseStmtBlock);
+
+        }
+        curFunction.addBasicBlock(curBlock);
+        curBlock = new BasicBlock(endLabel);
+        // TODO
+    }
+
+    public void visitContinueStmt() {
+        String label = whileLabelsList.get(loopNum).getStartLabel();
+        Ir ir = new Jump(label);
+        curBlock.insertIr(ir);
+        curFunction.addBasicBlock(curBlock);
+        String newLabel = "L" + labelCounter.allocate();
+        curBlock = new BasicBlock(newLabel);
+    }
+
+    public void visitBreakStmt() {
+        String label = whileLabelsList.get(loopNum).getEndLabel();
+        Ir ir = new Jump(label);
+        curBlock.insertIr(ir);
+        curFunction.addBasicBlock(curBlock);
+        String newLabel = "L" + labelCounter.allocate();
+        curBlock = new BasicBlock(newLabel);
+    }
+
+    public void visitWhileStmt(WhileStmt whileStmt) {
+
+        int no = whileCounter.allocate();
+        String starLabel;
+        if (curBlock.judgeIsEmpty()) {
+            starLabel = curBlock.getLabelName();
+        } else {
+            curFunction.addBasicBlock(curBlock);
+            starLabel = "while" + no + "_or_0";
+            curBlock = new BasicBlock(starLabel);
+        }
+
+        String endLabel = "while" + no + "_end";
+
+        WhileLabels whileLabels = new WhileLabels(starLabel, endLabel);
+        whileLabelsList.add(whileLabels);
+        this.loopNum++;
+
+        Cond cond = whileStmt.getCond();
+        visitCondForWhile(cond, no);
+        // 现在的basicBlock是 while_begin(也许已经换了)
+
+        Stmt stmt = whileStmt.getStmt();
+        visitStmt(stmt);
+        Ir ir = new Jump(starLabel);
+        curBlock.insertIr(ir);
+        curFunction.addBasicBlock(curBlock);
+
+
+        curBlock  = new BasicBlock(endLabel);
+
+        whileLabelsList.remove(loopNum);
+        this.loopNum--;
+        // Todo
     }
 
     public void visitAssignStmt(AssignStmt assignStmt) {

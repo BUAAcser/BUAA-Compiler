@@ -8,4 +8,8 @@ public class LandExp {
     public LandExp(ArrayList<EqExp> eqExps) {
         this.eqExps = eqExps;
     }
+
+    public ArrayList<EqExp> getEqExps() {
+        return eqExps;
+    }
 }

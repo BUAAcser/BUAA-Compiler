@@ -15,4 +15,16 @@ public class EqExp {
         this.relExps = relExps;
     }
 
+    public RelExp getFirst() {
+        return first;
+    }
+
+    public ArrayList<Token> getOperators() {
+        return operators;
+    }
+
+    public ArrayList<RelExp> getRelExps() {
+        return relExps;
+    }
+
 }

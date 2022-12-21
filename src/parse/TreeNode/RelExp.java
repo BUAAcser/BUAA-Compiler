@@ -1,5 +1,6 @@
 package parse.TreeNode;
 
+import Ir.Addition;
 import lex.Token;
 
 import java.util.ArrayList;
@@ -13,5 +14,16 @@ public class RelExp {
         this.first = first;
         this.operators = ops;
         this.addExps = addExps;
+    }
+
+    public AddExp getFirst() {
+        return first;
+    }
+
+    public ArrayList<Token> getOperators() {
+        return operators;
+    }
+    public ArrayList<AddExp> getAddExps() {
+        return addExps;
     }
 }

@@ -14,4 +14,15 @@ public class IfStmt extends Stmt {
         this.elseStmt = elseStmt;
     }
 
+    public Cond getCond() {
+        return cond;
+    }
+
+    public Stmt getIfStmt() {
+        return ifStmt;
+    }
+
+    public Stmt getElseStmt() {
+        return elseStmt;
+    }
 }

@@ -5,11 +5,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 public class BasicBlock {
-    private int num;
+    private String label;
     private ArrayList<Ir> irs;
 
-    public BasicBlock(int num) {
-        this.num = num;
+    public BasicBlock(String label) {
+        this.label = label;
         this.irs = new ArrayList<>();
     }
 
@@ -31,5 +31,13 @@ public class BasicBlock {
 
     public ArrayList<Ir> getIrs() {
         return irs;
+    }
+
+    public boolean judgeIsEmpty() {
+        return irs.isEmpty();
+    }
+
+    public String getLabelName() {
+        return label;
     }
 }
