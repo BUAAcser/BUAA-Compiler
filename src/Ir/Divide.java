@@ -22,53 +22,41 @@ public class Divide implements Ir {
         return result;
     }
 
-
     @Override
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset) {
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset, RegMemAllocator
+                         allocator) {
         Pattern pattern = Pattern.compile("^[-\\+]?[\\d]*$");
         Matcher matcher1 = pattern.matcher(operand1);
         Matcher matcher2 = pattern.matcher(operand2);
 
-        String m1;
+        String leftReg;
         if (matcher1.find()) {
             int value = Integer.parseInt(operand1);
-            m1 = "li $t1, " + value;
+            leftReg = "$t0";
+            String m1 = "li $t0, " + value;
+            mips.add(m1);
         } else {
-            if (varOffset.containsKey(operand1)) {
-                int offset = varOffset.get(operand1);
-                m1  = "lw $t1, " + offset + "($fp)";
-            } else {
-                m1  = "lw $t1, " + operand1 + "($0)";
-            }
+            leftReg = "$" + allocator.findRegister(operand1, mips);
         } // 将左值赋值到t1寄存器
-        mips.add(m1);
 
-        String m2;
+
+
+        String rightReg;
         if (matcher2.find()) {
             int value = Integer.parseInt(operand2);
-            m2 = "li $t2, " + value;
+            rightReg = "$t1";
+            String m2 = "li $t1, " + value;
+            mips.add(m2);
         } else {
-            if (varOffset.containsKey(operand2)) {
-                int offset = varOffset.get(operand2);
-                m2  = "lw $t2, " + offset + "($fp)";
-            } else {
-                m2  = "lw $t2, " + operand2 + "($0)";
-            }
-        } // 将右值赋值到t2寄存器
-        mips.add(m2);
+            rightReg = "$" + allocator.findRegister(operand2, mips);
+        } // 将右值赋值到寄存器
 
-        String div = "div $t1, $t2";
-        String res = "mflo $t3";
+        String div = "div " + leftReg + ", " + rightReg;
         mips.add(div);
+
+        String resReg =  "$" + allocator.getAssign(left, mips);
+        String res = "mflo " + resReg + "   # " + this.toString();
         mips.add(res);
 
-        if (varOffset.containsKey(left)) {
-            int offset = varOffset.get(left);
-            String sto  = "sw $t3, " + offset + "($fp)" + "     #" + this.toString();
-            mips.add(sto);
-        } else {
-            String sto  = "sw $t3, " + left + "($0)" + "     #" + this.toString();
-            mips.add(sto);
-        }
-    }
+    } // finish
 }

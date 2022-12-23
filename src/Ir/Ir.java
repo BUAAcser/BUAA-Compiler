@@ -5,5 +5,6 @@ import java.util.HashMap;
 
 public interface Ir {
 
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset);
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset, RegMemAllocator
+                         allocator);
 }

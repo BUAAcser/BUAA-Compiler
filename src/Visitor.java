@@ -7,7 +7,6 @@ import parse.TreeNode.Number;
 import parse.TreeNode.StmtEle.*;
 import symbol.*;
 import parse.TreeNode.*;
-
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -81,8 +80,11 @@ public class Visitor {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        BasicBlock mainblock = mainFunc.getBlock();
-        mainblock.printIrs(bw);
+        ArrayList<BasicBlock> mainblocks = mainFunc.getBlock();
+        for (BasicBlock block : mainblocks) {
+            block.printIrs(bw);
+        }
+
         for (Function function : functions) {
             String funcName = function.getFunctionName();
             try {
@@ -90,8 +92,10 @@ public class Visitor {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            BasicBlock block = function.getBlock();
-            block.printIrs(bw);
+            ArrayList<BasicBlock> blocks = function.getBlock();
+            for (BasicBlock block : blocks) {
+                block.printIrs(bw);
+            }
         }
         int testBreakPoint = 0;
         int testBreakPoint1 = 1;
@@ -101,18 +105,18 @@ public class Visitor {
         visitCompUnit(compUnit); // TODO MORE
     }
 
-//    public void allocateBasicBlock() {
+/*    public void allocateBasicBlock() {
 //        int num = labelCounter.allocate();
 //        BasicBlock block = new BasicBlock(num);
 //        curBlock = block; // 再Allocate时已经将curBlock切换了
-//    }
+//    }*/
 
     public String allocateTemp() {
         String tempName = tempCounter.allocateTemp();
-        int addressOffset = addressCounter.allocateTemp();
-        curFunction.addSymbolAndOffset(tempName, addressOffset);
+        // int addressOffset = addressCounter.allocateTemp();
+        curFunction.addIrLocal(tempName);
         return tempName;
-    } // 封装此方法用于申请临时变量，并在内存中记录
+    } // 封装此方法用于申请临时变量
 
     public void addGlobalSymbol(Symbol var) {
         String name = var.getName();
@@ -131,7 +135,7 @@ public class Visitor {
     }
 
     // TODO 这里还是有点问题，临时变量这里不需要存入符号表了
-    public void addLocalSymbol(SymbolTable symbolTable, VarSymbol var) {
+    public void addLocalSymbol(SymbolTable symbolTable, VarSymbol var, boolean isParam) {
         boolean isConstant = var.getIsConstant();
         SymbolType varType = var.getType();
         if (!isConstant || varType == SymbolType.Array) {
@@ -139,12 +143,14 @@ public class Visitor {
             String irName;
             irName = "Var_" + var.getName() +  "_" + Integer.toString(num);
             var.setIrName(irName);
-            int addressOffset = addressCounter.allocate(var);
-            var.setOffset(addressOffset);
             symbolTable.addSymbol(var.getName(), var);
-            // TODO
-            curFunction.addSymbolAndOffset(irName, addressOffset);
-            // 这一if分支处理普通常量的情况
+            if (varType == SymbolType.Array || isParam) {
+                int addressOffset = addressCounter.allocate(var);
+                var.setOffset(addressOffset);
+                curFunction.addSymbolAndOffset(irName, addressOffset);
+            }
+            curFunction.addIrLocal(irName);
+            // 这一if分支处理普通变量的情况
         } else {
             String irName = var.getName();
             var.setIrName(irName);
@@ -228,7 +234,7 @@ public class Visitor {
                 symbol = new VarSymbol(paramName, false,  SymbolType.Pointer, 2, dims, null);
                 param = new FuncParaSym(paramName, 2, dim2);
             }
-            addLocalSymbol(curTable, symbol);
+            addLocalSymbol(curTable, symbol, true);
             funcSymbol.addParam(param);
         }
 
@@ -236,6 +242,7 @@ public class Visitor {
         visitBlock(block);
 
         function.addBasicBlock(curBlock);
+        function.setOffset(addressCounter.getNow());
         functions.add(function);
     }
 
@@ -250,6 +257,7 @@ public class Visitor {
         Block block = mainFuncDef.getBlock();
         visitBlock(block);
         curFunction.addBasicBlock(curBlock);
+        curFunction.setOffset(addressCounter.getNow());
         mainFunc = main;
     }
 
@@ -303,7 +311,7 @@ public class Visitor {
         } else {
             symbol = new VarSymbol(name, true, SymbolType.Array, dimension, dims, values);
         }
-        addLocalSymbol(curTable, symbol);
+        addLocalSymbol(curTable, symbol, false);
     }
 
     public void visitVarDef(Def def) {
@@ -320,7 +328,7 @@ public class Visitor {
         } else {
             symbol = new VarSymbol(name, false, SymbolType.Array, dimension, dims, new ArrayList<>());
         }
-        addLocalSymbol(curTable, symbol);
+        addLocalSymbol(curTable, symbol, false);
         if (val != null) {
             String irName = curTable.searchVar(name);
             ArrayList<String> initValues = new ArrayList<>();
@@ -465,8 +473,8 @@ public class Visitor {
                     }
                 }
             }
-            int offset = addressCounter.getNow();
-            Call call = new Call("Func_" + funcName, offset);
+            // int offset = addressCounter.getNow();
+            Call call = new Call("Func_" + funcName);
             curBlock.insertIr(call);
             FuncType funcType = globalSymbolTable.searchFuncType(funcName);
             if (funcType == FuncType.INT) {
@@ -507,8 +515,8 @@ public class Visitor {
         int dimension = paraSym.getDimension();
         String str;
         if (dimension == 2) {
-            String irName = curTable.searchVar(arrayName);
             String reg = allocateTemp();
+            String irName = curTable.searchVar(arrayName);
             SymbolType arrayType = curTable.searchSymbolType(arrayName);
             LoadPointer loadPointer;
             if (arrayType == SymbolType.Array) {
@@ -532,7 +540,7 @@ public class Visitor {
                 curBlock.insertIr(loadPointer);
             } else {
                 String index = visitExp(indexes.get(0));
-                int dim2 = paraSym.getDimension();
+                int dim2 = curTable.searchArrayDimension(arrayName);
                 String t1 = allocateTemp();
                 Multiply multiply = new Multiply(t1, index, String.valueOf(dim2));
                 curBlock.insertIr(multiply);
@@ -652,7 +660,8 @@ public class Visitor {
     }
 
     public void visitCondForIf(Cond cond, int no, boolean hasElse) {
-
+        LorExp lorExp = cond.getLorExp();
+        visitLorExpForIf(lorExp, no, hasElse);
     }
 
     public void visitLorExpForWhile(LorExp lorExp, int whileNo) {
@@ -666,8 +675,16 @@ public class Visitor {
         }
     }
 
-
-
+    public void visitLorExpForIf(LorExp lorExp, int ifNo, boolean hasElse) {
+        ArrayList<LandExp> landExps = lorExp.getLandExps();
+        for (int i = 0; i < landExps.size(); i++) {
+            if (i == landExps.size() - 1) {
+                visitLandExpForIf(landExps.get(i), true, i, 0, ifNo, hasElse);
+            } else {
+                visitLandExpForIf(landExps.get(i), false, i, i + 1, ifNo, hasElse);
+            }
+        }
+    }
 
     public void visitLandExpForWhile(LandExp landExp, boolean isLast, int curNo, int nextNo, int whileNo) {
         ArrayList<EqExp> eqExps = landExp.getEqExps();
@@ -841,7 +858,7 @@ public class Visitor {
         } else if (stmt instanceof BreakStmt) {
             visitBreakStmt();
         } else if (stmt instanceof IfStmt) {
-
+            visitIfStmt((IfStmt) stmt);
         }
     }
 

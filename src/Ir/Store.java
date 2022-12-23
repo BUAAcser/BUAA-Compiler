@@ -20,29 +20,27 @@ public class Store implements Ir {
     }
 
     @Override
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset) {
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset, RegMemAllocator
+                         allocator ) {
         Pattern pattern = Pattern.compile("^[-\\+]?[\\d]*$");
         Matcher matcher = pattern.matcher(valueTemp);
         String m1;
-        // 用t1寄存器存储待存的值
+
+        String valueReg = "";
         if (matcher.find()) {
             int value = Integer.parseInt(valueTemp);
+            valueReg = "$t1";
             m1 = "li $t1, " + value;
+            mips.add(m1);
         } else {
-            if (varOffset.containsKey(valueTemp)) {
-                int offset = varOffset.get(valueTemp);
-                m1  = "lw $t1, " + offset + "($fp)";
-            } else {
-                m1  = "lw $t1, " + valueTemp + "($0)";
-            }
+            int regNum = allocator.findRegister(valueTemp, mips);
+            valueReg = "$" + regNum;
         }
-        mips.add(m1);
 
-        int off1 = varOffset.get(addressTemp);
-        String calcAddress = "lw $t2, " + off1 + "($fp)"; //  t2寄存器存储着地址
-        mips.add(calcAddress);
+        int addressNum = allocator.findRegister(addressTemp, mips);
+        String addressReg = "$" + addressNum;
 
-        String store = "sw $t1, 0($t2)" + "       #" + this.toString();
+        String store = "sw " + valueReg + ", 0(" + addressReg + ")      #" + this.toString();
         mips.add(store);
-    }
+    } // finish
 }

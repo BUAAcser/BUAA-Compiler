@@ -18,28 +18,29 @@ public class Push implements Ir {
     }
 
     @Override
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset) {
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset, RegMemAllocator
+                         allocator) {
 
     }
 
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset, int allOff) {
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset, int allOff,
+                         RegMemAllocator allocator) {
         Pattern pattern = Pattern.compile("^[-\\+]?[\\d]*$");
         Matcher matcher = pattern.matcher(paramName);
 
         String m1;
+        String valueReg;
         if (matcher.find()) {
             int value = Integer.parseInt(paramName);
             m1 = "li $t1, " + value;
+            mips.add(m1);
+            valueReg = "$t1";
         } else {
-            if (varOffset.containsKey(paramName)) {
-                int offset = varOffset.get(paramName);
-                m1  = "lw $t1, " + offset + "($fp)";
-            } else {
-                m1  = "lw $t1, " + paramName + "($0)";
-            }
+            int value = allocator.findRegister(paramName, mips);
+            valueReg = "$" + value;
         } // 将参数的值赋给t1寄存器
-        mips.add(m1);
-        mips.add("sw $t1, " + allOff + "($fp)");
-    }
+
+        mips.add("sw " +  valueReg +  ", " + allOff + "($fp)");
+    } // finish
 
 }

@@ -10,9 +10,14 @@ public class Jump implements Ir {
         this.label = label;
     }
 
+    public String toString() {
+        String res = "jump  " + label;
+        return res;
+    }
 
     @Override
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset) {
-
-    }
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset, RegMemAllocator
+                         allocator) {
+        mips.add("j  " + label);
+    } // finish
 }

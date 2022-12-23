@@ -19,13 +19,14 @@ public class BasicBlock {
 
     public void printIrs(BufferedWriter bw) {
         for (Ir ir : irs) {
-            String put = ir.toString() + "\n";
-            try {
-                bw.write(put);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+            if (!ir.toString().isEmpty()) {
+                String put = ir.toString() + "\n";
+                try {
+                    bw.write(put);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             }
-
         }
     }
 

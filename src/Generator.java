@@ -119,24 +119,30 @@ public class Generator {
     }
 
     public void generateFunc(Function function, String type) {
+        RegMemAllocator regMemAllocator = new RegMemAllocator(function.getVarOffset());
         boolean hasReturn = false;
-        ArrayList<Ir> irs =  function.getIrs();
+        ArrayList<BasicBlock> basicBlocks = function.getBlock();
         HashMap<String, Integer> varOffset = function.getVarOffset();
-        ArrayList<Ir> callFuncList = new ArrayList<>();
-        for (Ir ir : irs) {
-            if (ir instanceof PreToCall) {
-                callFuncList = new ArrayList<>();
-                callFuncList.add(ir);
-            } else if (ir instanceof Push) {
-                callFuncList.add(ir);
-            }  else if (ir instanceof Call) {
-                callFuncList.add(ir);
-                generatorCall(callFuncList, varOffset);
-            } else if (ir instanceof Return) {
-                hasReturn = true;
-                ((Return) ir).generate(mips,varOffset,type);
-            } else {
-                ir.generate(mips, varOffset);
+        for (BasicBlock basicBlock : basicBlocks) {
+            String label = basicBlock.getLabelName() + ":";
+            mips.add(label);
+            ArrayList<Ir> irs =  basicBlock.getIrs();
+            ArrayList<Ir> callFuncList = new ArrayList<>();
+            for (Ir ir : irs) {
+                if (ir instanceof PreToCall) {
+                    callFuncList = new ArrayList<>();
+                    callFuncList.add(ir);
+                } else if (ir instanceof Push) {
+                    callFuncList.add(ir);
+                }  else if (ir instanceof Call) {
+                    callFuncList.add(ir);
+                    generatorCall(callFuncList, varOffset);
+                } else if (ir instanceof Return) {
+                    hasReturn = true;
+                    ((Return) ir).generate(mips,varOffset,type);
+                } else {
+                    ir.generate(mips, varOffset);
+                }
             }
         }
         if (!hasReturn) {
@@ -161,4 +167,5 @@ public class Generator {
             }
         }
     }
+
 }

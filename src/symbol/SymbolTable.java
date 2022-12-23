@@ -122,4 +122,18 @@ public class SymbolTable {
     public HashMap<String, Symbol> getSymbols() {
         return symbols;
     }
+
+    public boolean isGlobal(String name) {
+        if (this.symbols.containsKey(name)) {
+            return (this.tableType == SymbolTableType.Global);
+        }  else {
+            if (this.fatherTable != null) {
+                return this.fatherTable.isGlobal(name);
+            } else {
+                System.out.println("There is something wrong in my testFile or program with name " + name);
+                System.out.println("judge is Global\n");
+                return false;
+            }
+        }
+    }
 }

@@ -1,5 +1,7 @@
 package Ir;
 
+import count.AddressCounter;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.regex.Matcher;
@@ -21,32 +23,21 @@ public class Assign implements Ir {
 
 
     @Override
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset) {
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset,
+                         RegMemAllocator allocator) {
         Pattern pattern = Pattern.compile("^[-\\+]?[\\d]*$");
         Matcher matcher = pattern.matcher(right);
 
         String m1;
+        String lef =  "$" + allocator.getAssign(left, mips);
         if (matcher.find()) {
             int value = Integer.parseInt(right);
-            m1 = "li $t1, " + value;
+            m1 = "li " + lef +  ", " + value;
         } else {
-            if (varOffset.containsKey(right)) {
-                int offset = varOffset.get(right);
-                m1  = "lw $t1, " + offset + "($fp)";
-            } else {
-                m1  = "lw $t1, " + right + "($0)";
-            }
+            String rig = "$" + allocator.getAssign(right, mips);
+            m1 = "move " + lef + ", " + rig;
         }
         mips.add(m1);
 
-        if (varOffset.containsKey(left)) {
-            int offset = varOffset.get(left);
-            String sto  = "sw $t1, " + offset + "($fp)" + "     #" + this.toString();
-            mips.add(sto);
-        } else {
-            String sto  = "sw $t1, " + left + "($0)" + "     #" + this.toString();
-            mips.add(sto);   //  左端是全局变量
-        }
-
-    }
+    } // finish
 }
