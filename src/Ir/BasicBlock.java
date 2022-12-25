@@ -18,6 +18,11 @@ public class BasicBlock {
     }
 
     public void printIrs(BufferedWriter bw) {
+        try {
+            bw.write(label + ":\n");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         for (Ir ir : irs) {
             if (!ir.toString().isEmpty()) {
                 String put = ir.toString() + "\n";

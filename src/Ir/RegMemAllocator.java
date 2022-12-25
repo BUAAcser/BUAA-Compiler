@@ -20,6 +20,10 @@ public class RegMemAllocator {
         this.regMaps = new ArrayList<>();
     }
 
+    public int getOffset() {
+        return offset;
+    }
+
     public HashMap<Integer, String> getAllocatedRegs() {
         return allocatedRegs;
     }
@@ -36,6 +40,7 @@ public class RegMemAllocator {
                 for (int i = 5; i <= 25; i++) {
                     if (i != 8 && i != 9 && !allocatedRegs.containsKey(i)) {
                         regNum = i;
+                        break;
                     }
                 }
             }
@@ -46,7 +51,7 @@ public class RegMemAllocator {
             } else {
                 load  = "lw $" + regNum + ", " + varName + "($0)" +  " #"  + varName + ":  " + regNum;
             }
-            mips.add(load);
+            mips.add(load + "  #  " + varName + regNum);
             allocatedRegs.put(regNum,varName);
             irNamesToRegs.put(varName, regNum);
             regMaps.add(new RegMap(regNum, varName));
@@ -95,6 +100,7 @@ public class RegMemAllocator {
                 for (int i = 5; i <= 25; i++) {
                     if (i != 8 && i != 9 && !allocatedRegs.containsKey(i)) {
                         regNum = i;
+                        break;
                     }
                 }
             }
@@ -136,15 +142,22 @@ public class RegMemAllocator {
     }
 
     public void loadGetOffset(String varIr, ArrayList<String> mips) {
-        if (localIrs.containsKey(varIr)) {
-            int offsetValue = varOffset.get(varIr);
-            mips.add("lw $t1, " + offsetValue + "($fp)");
+        if (irNamesToRegs.containsKey(varIr)) {
+            String offReg = "$" + irNamesToRegs.get(varIr);
+            mips.add("li $3, 4");
+            mips.add("mul $t1, " + offReg + ", $3" + "    #计算数组元素离首地址的偏移");
         } else {
-            mips.add("lw $t1, " + varIr + "($0)");
-            //System.out.println("Wrong! In Pointer offset finding" + offset);
+            if (localIrs.containsKey(varIr)) {
+                int offsetValue = varOffset.get(varIr);
+                mips.add("lw $t1, " + offsetValue + "($fp)");
+            } else {
+                mips.add("lw $t1, " + varIr + "($0)");
+                //System.out.println("Wrong! In Pointer offset finding" + offset);
+            }
+            mips.add("li $3, 4");
+            mips.add("mul $t1, $t1, $3" + "    #计算数组元素离首地址的偏移");
         }
-        mips.add("li $3, 4");
-        mips.add("mul $t1, $t1, $3" + "    #计算数组元素离首地址的偏移");
+
     }
 
     public void getInt(String varIr, ArrayList<String> mips) {

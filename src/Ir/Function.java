@@ -23,13 +23,15 @@ public class Function {
         this.offset = offset;
     }
 
+    public int getOffset() {
+        return offset;
+    }
+
+
     public void addSymbolAndOffset(String symbolName, int offset) {
         varOffset.put(symbolName, offset);
     }
 
-    public void addIrLocal(String varIrName) {
-        localIrVars.put(varIrName, 1);
-    }
 
     public void addBasicBlock(BasicBlock basicBlock) {
         basicBlocks.add(basicBlock);
@@ -49,6 +51,6 @@ public class Function {
 
 //    public ArrayList<Ir> getIrs() {
 //        return  basicBlocks.get(0).getIrs();
-//    } // TODO 有问题
+//    } /
 
 }

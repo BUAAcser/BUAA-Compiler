@@ -23,21 +23,35 @@ public class Assign implements Ir {
 
 
     @Override
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset,
-                         RegMemAllocator allocator) {
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset) {
         Pattern pattern = Pattern.compile("^[-\\+]?[\\d]*$");
         Matcher matcher = pattern.matcher(right);
 
+        mips.add("###    start   " + this.toString());
+
         String m1;
-        String lef =  "$" + allocator.getAssign(left, mips);
         if (matcher.find()) {
             int value = Integer.parseInt(right);
-            m1 = "li " + lef +  ", " + value;
+            m1 = "li $t1, " + value;
         } else {
-            String rig = "$" + allocator.getAssign(right, mips);
-            m1 = "move " + lef + ", " + rig;
+            if (varOffset.containsKey(right)) {
+                int offset = varOffset.get(right);
+                m1  = "lw $t1, " + offset + "($fp)";
+            } else {
+                m1  = "lw $t1, " + right + "($0)";
+            }
         }
         mips.add(m1);
 
+        if (varOffset.containsKey(left)) {
+            int offset = varOffset.get(left);
+            String sto  = "sw $t1, " + offset + "($fp)";
+            mips.add(sto);
+        } else {
+            String sto  = "sw $t1, " + left + "($0)";
+            mips.add(sto);   //  左端是全局变量
+        }
+
+        mips.add("###   end    " + this.toString());
     } // finish
 }

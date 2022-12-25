@@ -20,27 +20,35 @@ public class Store implements Ir {
     }
 
     @Override
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset, RegMemAllocator
-                         allocator ) {
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset) {
         Pattern pattern = Pattern.compile("^[-\\+]?[\\d]*$");
         Matcher matcher = pattern.matcher(valueTemp);
-        String m1;
 
-        String valueReg = "";
+
+        mips.add("###    start   " + this.toString());
+
+        String m1;
+        // 用t1寄存器存储待存的值
         if (matcher.find()) {
             int value = Integer.parseInt(valueTemp);
-            valueReg = "$t1";
             m1 = "li $t1, " + value;
-            mips.add(m1);
         } else {
-            int regNum = allocator.findRegister(valueTemp, mips);
-            valueReg = "$" + regNum;
+            if (varOffset.containsKey(valueTemp)) {
+                int offset = varOffset.get(valueTemp);
+                m1  = "lw $t1, " + offset + "($fp)";
+            } else {
+                m1  = "lw $t1, " + valueTemp + "($0)";
+            }
         }
+        mips.add(m1);
 
-        int addressNum = allocator.findRegister(addressTemp, mips);
-        String addressReg = "$" + addressNum;
+        int off1 = varOffset.get(addressTemp);
+        String calcAddress = "lw $t2, " + off1 + "($fp)"; //  t2寄存器存储着地址
+        mips.add(calcAddress);
 
-        String store = "sw " + valueReg + ", 0(" + addressReg + ")      #" + this.toString();
+        String store = "sw $t1, 0($t2)";
         mips.add(store);
+        mips.add("###   end    " + this.toString());
+
     } // finish
 }

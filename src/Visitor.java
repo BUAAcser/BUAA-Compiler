@@ -83,6 +83,11 @@ public class Visitor {
         ArrayList<BasicBlock> mainblocks = mainFunc.getBlock();
         for (BasicBlock block : mainblocks) {
             block.printIrs(bw);
+            try {
+                bw.write( "\n");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         for (Function function : functions) {
@@ -95,6 +100,11 @@ public class Visitor {
             ArrayList<BasicBlock> blocks = function.getBlock();
             for (BasicBlock block : blocks) {
                 block.printIrs(bw);
+                try {
+                    bw.write( "\n");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
         int testBreakPoint = 0;
@@ -113,8 +123,8 @@ public class Visitor {
 
     public String allocateTemp() {
         String tempName = tempCounter.allocateTemp();
-        // int addressOffset = addressCounter.allocateTemp();
-        curFunction.addIrLocal(tempName);
+        int addressOffset = addressCounter.allocateTemp();
+        curFunction.addSymbolAndOffset(tempName, addressOffset);
         return tempName;
     } // 封装此方法用于申请临时变量
 
@@ -135,7 +145,7 @@ public class Visitor {
     }
 
     // TODO 这里还是有点问题，临时变量这里不需要存入符号表了
-    public void addLocalSymbol(SymbolTable symbolTable, VarSymbol var, boolean isParam) {
+    public void addLocalSymbol(SymbolTable symbolTable, VarSymbol var) {
         boolean isConstant = var.getIsConstant();
         SymbolType varType = var.getType();
         if (!isConstant || varType == SymbolType.Array) {
@@ -143,13 +153,10 @@ public class Visitor {
             String irName;
             irName = "Var_" + var.getName() +  "_" + Integer.toString(num);
             var.setIrName(irName);
+            int addressOffset = addressCounter.allocate(var);
+            var.setOffset(addressOffset);
             symbolTable.addSymbol(var.getName(), var);
-            if (varType == SymbolType.Array || isParam) {
-                int addressOffset = addressCounter.allocate(var);
-                var.setOffset(addressOffset);
-                curFunction.addSymbolAndOffset(irName, addressOffset);
-            }
-            curFunction.addIrLocal(irName);
+            curFunction.addSymbolAndOffset(irName, addressOffset);
             // 这一if分支处理普通变量的情况
         } else {
             String irName = var.getName();
@@ -234,15 +241,15 @@ public class Visitor {
                 symbol = new VarSymbol(paramName, false,  SymbolType.Pointer, 2, dims, null);
                 param = new FuncParaSym(paramName, 2, dim2);
             }
-            addLocalSymbol(curTable, symbol, true);
+            addLocalSymbol(curTable, symbol);
             funcSymbol.addParam(param);
         }
 
         Block block = funcDef.getBlock();
         visitBlock(block);
-
+        curBlock.insertIr(new Return(null));
         function.addBasicBlock(curBlock);
-        function.setOffset(addressCounter.getNow());
+        //   function.setOffset(addressCounter.getNow());
         functions.add(function);
     }
 
@@ -257,7 +264,7 @@ public class Visitor {
         Block block = mainFuncDef.getBlock();
         visitBlock(block);
         curFunction.addBasicBlock(curBlock);
-        curFunction.setOffset(addressCounter.getNow());
+        //  curFunction.setOffset(addressCounter.getNow());
         mainFunc = main;
     }
 
@@ -311,7 +318,33 @@ public class Visitor {
         } else {
             symbol = new VarSymbol(name, true, SymbolType.Array, dimension, dims, values);
         }
-        addLocalSymbol(curTable, symbol, false);
+
+        addLocalSymbol(curTable, symbol);
+        String irName = curTable.searchVar(name);
+
+        if (dimension == 1) {
+            int dim1 = dims.get(0);
+            for (int i = 0; i < dim1; i++) {
+                String t1 = allocateTemp();
+                LoadPointer loadPointer = new LoadPointer(t1, irName, String.valueOf(i), LoadPointType.Offset);
+                curBlock.insertIr(loadPointer);
+                Store store = new Store(Integer.toString(values.get(i)), t1);
+                curBlock.insertIr(store);
+            }
+        } else if (dimension == 2) {
+            int dim1 = dims.get(0);
+            int dim2 = dims.get(1);
+            for (int i = 0; i < dim1; i++) {
+                for (int j = 0; j < dim2; j++) {
+                    String t1 = allocateTemp();
+                    LoadPointer loadPointer = new LoadPointer(t1, irName, String.valueOf(i * dim2 + j),LoadPointType.Offset);
+                    curBlock.insertIr(loadPointer);
+                    Store store = new Store(Integer.toString(values.get(i * dim2 + j)), t1);
+                    curBlock.insertIr(store);
+                }
+            }
+        }
+
     }
 
     public void visitVarDef(Def def) {
@@ -328,7 +361,7 @@ public class Visitor {
         } else {
             symbol = new VarSymbol(name, false, SymbolType.Array, dimension, dims, new ArrayList<>());
         }
-        addLocalSymbol(curTable, symbol, false);
+        addLocalSymbol(curTable, symbol);
         if (val != null) {
             String irName = curTable.searchVar(name);
             ArrayList<String> initValues = new ArrayList<>();
@@ -454,8 +487,8 @@ public class Visitor {
             String funcName = func.getContent();
             FuncRParams funcRParams = unaryExp.getFuncRparams();
 
+            ArrayList<String> canShus = new ArrayList<>();
             if (funcRParams != null) {
-                ArrayList<String> canShus = new ArrayList<>();
                 ArrayList<Exp> realParamsExps = funcRParams.getExps();
                 ArrayList<FuncParaSym> formalParams = globalSymbolTable.getFormalParams(funcName);
                 for (int i = 0; i < formalParams.size(); i++) {
@@ -466,15 +499,15 @@ public class Visitor {
                         String canShu = visitArrayParam(realParamsExps.get(i), formalParams.get(i));
                         canShus.add(canShu);
                     }
-                    curBlock.insertIr(new PreToCall());
-                    for (String canShu : canShus) {
-                        Push push = new Push(canShu);
-                        curBlock.insertIr(push);
-                    }
                 }
             }
-            // int offset = addressCounter.getNow();
-            Call call = new Call("Func_" + funcName);
+            curBlock.insertIr(new PreToCall());
+            for (String canShu : canShus) {
+                Push push = new Push(canShu);
+                curBlock.insertIr(push);
+            }
+            int offset = addressCounter.getNow();
+            Call call = new Call("Func_" + funcName, offset);
             curBlock.insertIr(call);
             FuncType funcType = globalSymbolTable.searchFuncType(funcName);
             if (funcType == FuncType.INT) {
@@ -1004,6 +1037,11 @@ public class Visitor {
         ArrayList<Exp> exps = printfStmt.getExps();
         int index = 0;
         StringBuilder output = new StringBuilder();
+        ArrayList<String> ints = new ArrayList<>();
+        for (Exp exp : exps) {
+            String temp = visitExp(exp);
+            ints.add(temp);
+        }
         while (index < str.length()) {
             if ((int) str.charAt(index) == 32 || (int) str.charAt(index) == 33 ||
                     ((int) str.charAt(index) >= 40 && (int) str.charAt(index) <= 126 &&
@@ -1029,10 +1067,8 @@ public class Visitor {
                     strs.add(output.toString());
                     output = new StringBuilder();
                 }
-                Exp exp = exps.get(expNum);
-                String temp = visitExp(exp);
+                PrintStr printStr = new PrintStr(0, ints.get(expNum));
                 expNum++;
-                PrintStr printStr = new PrintStr(0, temp);
                 curBlock.insertIr(printStr);
                 index += 2;
             }

@@ -25,8 +25,8 @@ public class PrintStr implements Ir {
     }
 
     @Override
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset,
-                         RegMemAllocator allocator) {
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset) {
+        mips.add("###    start   " + this.toString());
         if (numVar != null) {
             Pattern pattern = Pattern.compile("^[-\\+]?[\\d]*$");
             Matcher matcher = pattern.matcher(numVar);
@@ -34,11 +34,15 @@ public class PrintStr implements Ir {
             if (matcher.find()) {
                 int value = Integer.parseInt(numVar);
                 m1 = "li $a0, " + value;
-                mips.add(m1);
             } else {
-                allocator.preparePrintNum(numVar, mips);
+                if (varOffset.containsKey(numVar)) {
+                    int offset = varOffset.get(numVar);
+                    m1  = "lw $a0, " + offset + "($fp)";
+                } else {
+                    m1  = "lw $a0, " + numVar + "($0)";
+                }
             } // 将要输出的值赋值到a0寄存器
-
+            mips.add(m1);
             mips.add("li $v0, 1");
             mips.add("syscall");
             // 要输出数字
@@ -47,6 +51,7 @@ public class PrintStr implements Ir {
             mips.add("la $a0, str_" + strNo);
             mips.add("syscall");
         }
+        mips.add("###    end   " + this.toString());
     } // finish
     // TODO 生成后端代码时，先判断numvar字符串是否为空
 }

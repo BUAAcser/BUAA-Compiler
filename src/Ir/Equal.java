@@ -23,36 +23,53 @@ public class Equal implements  Ir {
     }
 
     @Override
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset,
-                         RegMemAllocator allocator) {
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset) {
         Pattern pattern = Pattern.compile("^[-\\+]?[\\d]*$");
         Matcher matcher1 = pattern.matcher(operand1);
         Matcher matcher2 = pattern.matcher(operand2);
 
-        String leftReg;
+        mips.add("###    start   " + this.toString());
+
+        String m1;
         if (matcher1.find()) {
             int value = Integer.parseInt(operand1);
-            leftReg = "$t0";
-            String m1 = "li $t0, " + value;
-            mips.add(m1);
+            m1 = "li $t1, " + value;
         } else {
-            leftReg = "$" + allocator.findRegister(operand1, mips);
-        }
+            if (varOffset.containsKey(operand1)) {
+                int offset = varOffset.get(operand1);
+                m1  = "lw $t1, " + offset + "($fp)";
+            } else {
+                m1  = "lw $t1, " + operand1 + "($0)";
+            }
+        } // 将左值赋值到t1寄存器
+        mips.add(m1);
 
-
-
-        String rightReg;
+        String m2;
         if (matcher2.find()) {
             int value = Integer.parseInt(operand2);
-            rightReg = "$t1";
-            String m2 = "li $t1, " + value;
-            mips.add(m2);
+            m2 = "li $t2, " + value;
         } else {
-            rightReg = "$" + allocator.findRegister(operand2, mips);
+            if (varOffset.containsKey(operand2)) {
+                int offset = varOffset.get(operand2);
+                m2  = "lw $t2, " + offset + "($fp)";
+            } else {
+                m2  = "lw $t2, " + operand2 + "($0)";
+            }
+        } // 将右值赋值到t2寄存器
+        mips.add(m2);
+
+        String result = "seq $t3, $t1, $t2";
+        mips.add(result);
+
+        if (varOffset.containsKey(left)) {
+            int offset = varOffset.get(left);
+            String sto  = "sw $t3, " + offset + "($fp)";
+            mips.add(sto);
+        } else {
+            String sto  = "sw $t3, " + left + "($0)";
+            mips.add(sto);
         }
 
-        String resReg =  "$" + allocator.getAssign(left, mips);
-        String result = "seq " + resReg + ", " + leftReg + ", "  + rightReg + "   #"  + this.toString();
-        mips.add(result);
+        mips.add("###   end    " + this.toString());
     }
 }

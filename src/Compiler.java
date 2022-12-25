@@ -62,7 +62,7 @@ public class Compiler {
         CompUnit compUnit = parser.getCompUnit();
         Visitor visitor = new Visitor(compUnit, bw1);
         visitor.visit();
-        // visitor.printIr();
+        visitor.printIr();
 
         try {
             bw1.close();

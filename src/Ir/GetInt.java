@@ -23,17 +23,26 @@ public class GetInt implements Ir {
     }
 
     @Override
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset, RegMemAllocator
-                         allocator) {
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset) {
+
+        mips.add("###    start   " + this.toString());
+
         mips.add("li $v0, 5");
         mips.add("syscall");
 
         if (varName != null) {
-            String res = "$" + allocator.getAssign(varName,mips);
-            mips.add("move " + res + ", " + "$v0" +  "    #" + this.toString());
+            if (varOffset.containsKey(varName)) {
+                int offset = varOffset.get(varName);
+                mips.add("sw $v0, " + offset + "($fp)");
+            } else {
+                mips.add("sw $v0, " + varName + "($0)");
+            }
         } else {
-            String arrayAdd = "$" + allocator.findRegister(arrayAddVar, mips);
-            mips.add("sw $v0, 0(" + arrayAdd + ")" + "     #" + this.toString());
+            int offset = varOffset.get(arrayAddVar);
+            mips.add("lw $t1, " + offset + "($fp)");
+            mips.add("sw $v0, 0($t1)");  // t1寄存器 代表着数组元素地址
         }
+
+        mips.add("###    end   " + this.toString());
     } // finish
 }

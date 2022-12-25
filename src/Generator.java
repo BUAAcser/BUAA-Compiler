@@ -119,7 +119,6 @@ public class Generator {
     }
 
     public void generateFunc(Function function, String type) {
-        RegMemAllocator regMemAllocator = new RegMemAllocator(function.getVarOffset());
         boolean hasReturn = false;
         ArrayList<BasicBlock> basicBlocks = function.getBlock();
         HashMap<String, Integer> varOffset = function.getVarOffset();
@@ -139,7 +138,7 @@ public class Generator {
                     generatorCall(callFuncList, varOffset);
                 } else if (ir instanceof Return) {
                     hasReturn = true;
-                    ((Return) ir).generate(mips,varOffset,type);
+                    ((Return) ir).generate(mips, type, varOffset);
                 } else {
                     ir.generate(mips, varOffset);
                 }
@@ -152,18 +151,19 @@ public class Generator {
 
     public void generatorCall(ArrayList<Ir> irs, HashMap<String, Integer> varOffset) {
         int paramNum = 0;
-        int fp = 0;
+        int off = 0;
         for (Ir pir : irs) {
             if (pir instanceof Call) {
-                fp = ((Call) pir).getOffset();
+                off = ((Call) pir).getOffset();
+                break;
             }
         }
         for (Ir ir : irs) {
             if (ir instanceof Push) {
-                ((Push) ir).generate(mips, varOffset, fp + (paramNum * 4));
+                ((Push) ir).generate(mips, off + (paramNum * 4), varOffset);
                 paramNum++;
             } else if (ir instanceof Call) {
-                ((Call) ir).generate(mips,varOffset,  fp);
+                ((Call) ir).generate(mips, off, varOffset);
             }
         }
     }

@@ -20,25 +20,37 @@ public class Negative implements Ir {
     }
 
     @Override
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset, RegMemAllocator
-                         allocator) {
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset) {
         Pattern pattern = Pattern.compile("^[-\\+]?[\\d]*$");
-        Matcher matcher1 = pattern.matcher(right);
+        Matcher matcher = pattern.matcher(right);
+        mips.add("###    start   " + this.toString());
 
-        String rightReg;
-        if (matcher1.find()) {
+        String m1;
+        if (matcher.find()) {
             int value = Integer.parseInt(right);
-            rightReg = "$t0";
-            String m1 = "li $t0, " + value;
-            mips.add(m1);
+            m1 = "li $t1, " + value;
         } else {
-            rightReg = "$" + allocator.findRegister(right, mips);
-        }
+            if (varOffset.containsKey(right)) {
+                int offset = varOffset.get(right);
+                m1  = "lw $t1, " + offset + "($fp)";
+            } else {
+                m1  = "lw $t1, " + right + "($0)";
+            }
+        } // 将right赋值到t1寄存器
+        mips.add(m1);
 
-
-        String resReg =  "$" + allocator.getAssign(left, mips);
-        String result = "subu " + resReg + ", $0, "  + rightReg + "   #"  + this.toString();
+        String result = "subu $t3, $0, $t1";
         mips.add(result);
 
+        if (varOffset.containsKey(left)) {
+            int offset = varOffset.get(left);
+            String sto  = "sw $t3, " + offset + "($fp)";
+            mips.add(sto);
+        } else {
+            String sto  = "sw $t3, " + left + "($0)";
+            mips.add(sto);
+        }
+
+        mips.add("###    end   " + this.toString());
     } //finish
 }

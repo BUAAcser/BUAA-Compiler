@@ -16,16 +16,22 @@ public class Ret implements Ir {
     }
 
     @Override
-    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset,
-                         RegMemAllocator allocator) {
+    public void generate(ArrayList<String> mips, HashMap<String, Integer> varOffset) {
+        mips.add("###    start   " + this.toString());
 
-        int num = allocator.getAssign(left, mips);
-        String resReg = "$" + num;
-        String move = "move " + resReg + ", $v0" + "   # " + this.toString();
+        String move = "move $t1, $v0";
+        String sto;
+
+        if (varOffset.containsKey(left)) {
+            int offset = varOffset.get(left);
+            sto = "sw $t1, " + offset + "($fp)";
+        } else {
+            sto = "sw $t1, " + left + "($0)";
+        }
+
         mips.add(move);
+        mips.add(sto);
 
-        /* int offset = varOffset.get(left);
-        String sto = "sw $t1, " + offset + "($fp)";
-        mips.add(sto);*/
+        mips.add("###    end   " + this.toString());
     } // finish
 }
