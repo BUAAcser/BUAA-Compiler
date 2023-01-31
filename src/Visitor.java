@@ -33,6 +33,8 @@ public class Visitor {
     private BasicBlock curBlock;
     private BufferedWriter bw;
 
+    private ArrayList<String> globalVarUseGetInt;
+
     public Visitor(CompUnit compUnit, BufferedWriter bw) {
         this.compUnit = compUnit;
         this.tableCounter = new TableCounter();
@@ -55,6 +57,7 @@ public class Visitor {
         this.curTable = null;
         this.curBlock = null;
         this.bw = bw;
+        this.globalVarUseGetInt = new ArrayList<>();
         // visit();
     }
 
@@ -186,21 +189,33 @@ public class Visitor {
     public void visitGlobalDecl(Decl decl) {
         ArrayList<Def> defs = decl.getDefs();
         for (Def def : defs) {
-            Symbol symbol;
-            ArrayList<Integer> dims = new ArrayList<>();   // 用于存储各个维度Exp的值
-            ArrayList<Integer> values = new ArrayList<>();  // 用于存储全局变量初值
-            boolean isConstant = def.getIsConstant();
-            String name = def.getName();
-            int dimension = def.getDimension();
-            def.calcDims(dims, globalSymbolTable); // 计算得到全局变量各个维度
-            def.getConstDefValue(values, globalSymbolTable, dims);
-            if (dimension == 0) {
-                int initValue = values.get(0);
-                symbol = new VarSymbol(name, isConstant, SymbolType.Var, initValue);
+            boolean isGetInt = def.getIsGetInt();
+            if (!isGetInt) {
+                Symbol symbol;
+                ArrayList<Integer> dims = new ArrayList<>();   // 用于存储各个维度Exp的值
+                ArrayList<Integer> values = new ArrayList<>();  // 用于存储全局变量初值
+                boolean isConstant = def.getIsConstant();
+                String name = def.getName();
+                int dimension = def.getDimension();
+                def.calcDims(dims, globalSymbolTable); // 计算得到全局变量各个维度
+                def.getConstDefValue(values, globalSymbolTable, dims);
+                if (dimension == 0) {
+                    int initValue = values.get(0);
+                    symbol = new VarSymbol(name, isConstant, SymbolType.Var, initValue);
+                } else {
+                    symbol = new VarSymbol(name, isConstant, SymbolType.Array, dimension, dims, values);
+                } //
+                addGlobalSymbol(symbol); // 全局变量是在这里被加入全局变量表的
             } else {
-                symbol = new VarSymbol(name, isConstant, SymbolType.Array, dimension, dims, values);
-            } //
-            addGlobalSymbol(symbol); // 全局变量是在这里被加入全局变量表的
+                Symbol symbol;
+                String name = def.getName();
+                boolean isConstant = def.getIsConstant();
+                symbol = new VarSymbol(name, isConstant, SymbolType.Var, 0);
+                addGlobalSymbol(symbol);
+                String iRName = globalSymbolTable.searchVar(name);
+                globalVarUseGetInt.add(iRName);
+            }
+
         }
     }
 
@@ -260,6 +275,11 @@ public class Visitor {
         curTable = new SymbolTable(SymbolTableType.Local, tableCounter.allocate(),globalSymbolTable);
         String label = "L" + labelCounter.allocate();
         curBlock = new BasicBlock(label);
+
+        for (int i = 0; i < globalVarUseGetInt.size(); i++) {
+            GetInt getInt = new GetInt(globalVarUseGetInt.get(i), null);
+            curBlock.insertIr(getInt);
+        }
 
         Block block = mainFuncDef.getBlock();
         visitBlock(block);
@@ -356,47 +376,52 @@ public class Visitor {
         String name = def.getName();
         InitVal val = def.getVal();
 
+        boolean isGetInt = def.getIsGetInt();
         if (dimension == 0) {
             symbol = new VarSymbol(name, false, SymbolType.Var, 0);
         } else {
             symbol = new VarSymbol(name, false, SymbolType.Array, dimension, dims, new ArrayList<>());
         }
         addLocalSymbol(curTable, symbol);
-        if (val != null) {
-            String irName = curTable.searchVar(name);
-            ArrayList<String> initValues = new ArrayList<>();
-            visitInitVal(val, initValues);
-            if (dimension == 0) {
-                Assign assign = new Assign(irName, initValues.get(0));
-                curBlock.insertIr(assign);
-            } else if (dimension == 1) {
-                int dim1 = dims.get(0);
-                for (int i = 0; i < dim1; i++) {
-                    String t1 = allocateTemp();
-                    LoadPointer loadPointer = new LoadPointer(t1, irName, String.valueOf(i), LoadPointType.Offset);
-                    curBlock.insertIr(loadPointer);
-                    Store store = new Store(initValues.get(i), t1);
-                    curBlock.insertIr(store);
-                }
-            } else {
-                int dim1 = dims.get(0);
-                int dim2 = dims.get(1);
-                for (int i = 0; i < dim1; i++) {
-                    for (int j = 0; j < dim2; j++) {
+        if (!isGetInt) {
+            if (val != null) {
+                String irName = curTable.searchVar(name);
+                ArrayList<String> initValues = new ArrayList<>();
+                visitInitVal(val, initValues);
+                if (dimension == 0) {
+                    Assign assign = new Assign(irName, initValues.get(0));
+                    curBlock.insertIr(assign);
+                } else if (dimension == 1) {
+                    int dim1 = dims.get(0);
+                    for (int i = 0; i < dim1; i++) {
                         String t1 = allocateTemp();
-                        LoadPointer loadPointer = new LoadPointer(t1, irName, String.valueOf(i * dim2 + j),LoadPointType.Offset);
+                        LoadPointer loadPointer = new LoadPointer(t1, irName, String.valueOf(i), LoadPointType.Offset);
                         curBlock.insertIr(loadPointer);
-                        Store store = new Store(initValues.get(i * dim2 + j), t1);
+                        Store store = new Store(initValues.get(i), t1);
                         curBlock.insertIr(store);
+                    }
+                } else {
+                    int dim1 = dims.get(0);
+                    int dim2 = dims.get(1);
+                    for (int i = 0; i < dim1; i++) {
+                        for (int j = 0; j < dim2; j++) {
+                            String t1 = allocateTemp();
+                            LoadPointer loadPointer = new LoadPointer(t1, irName, String.valueOf(i * dim2 + j),LoadPointType.Offset);
+                            curBlock.insertIr(loadPointer);
+                            Store store = new Store(initValues.get(i * dim2 + j), t1);
+                            curBlock.insertIr(store);
+                        }
                     }
                 }
             }
+        } else {
+            String irName = curTable.searchVar(name);
+            GetInt getInt = new GetInt(irName, null);
+            curBlock.insertIr(getInt);
         }
-
     }
 
     public void visitInitVal(InitVal val, ArrayList<String> initValues) {
-
         if (val.getType() == InitValType.SIMPLE) {
             Exp exp = val.getExp();
             initValues.add(visitExp(exp));
@@ -466,9 +491,12 @@ public class Visitor {
                 } else if (op.getType() == TokenType.DIV) {
                     Divide divide = new Divide(temp, nowResult, operand2);
                     curBlock.insertIr(divide);
-                } else {
+                } else if (op.getType() == TokenType.MOD) {
                     Mod mod = new Mod(temp, nowResult, operand2);
                     curBlock.insertIr(mod);
+                } else {
+                    And and = new And(temp, nowResult, operand2);
+                    curBlock.insertIr(and);
                 }
                 nowResult = temp;
             }
@@ -521,7 +549,8 @@ public class Visitor {
         }
 
         ArrayList<Token> operators = unaryExp.getOperators();
-        for (Token op : operators) {
+        for (int i = operators.size() - 1; i >= 0;  i--) {
+            Token op = operators.get(i);
             if (op.getType() == TokenType.MINU) {
                 String temp = allocateTemp();
                 Negative negative = new Negative(temp, result);

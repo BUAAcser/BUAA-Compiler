@@ -27,21 +27,21 @@ public class Parser {
     }
 
     public void printStream(String str) {
-//        try {
-//            bf.write(str);
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
+        try {
+            bf.write(str);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Token getNextToken() {
         Token token = lexer.getNextToken();
         String str = token.getType() + " " + token.getContent() + "\n";
-//        try {
-//            bf.write(str);
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
+        try {
+            bf.write(str);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         return token;
     }
 
@@ -144,7 +144,7 @@ public class Parser {
             }
             // 退出循环 即此时symbol的TokenType为 TokenType.ASSIGN,即为 =
             initval = parseInitVal(true);
-            def = new Def(true, ident, dimension, dimSizes, initval);
+            def = new Def(true, ident, dimension, dimSizes, initval, false);
             printStream("<ConstDef>\n");
         } else {
             ident = getNextToken();
@@ -164,9 +164,19 @@ public class Parser {
             // 判断下一Token是不是 =
             if (symbol.getType() == TokenType.ASSIGN) {
                 getNextToken(); // get 消化 =
-                initval = parseInitVal(false);
+                Token nextFinal = lexer.visitNextToken();
+                if (nextFinal.getType() == TokenType.GETINTTK) {
+                    getNextToken(); // getInt
+                    getNextToken(); // get(
+                    getNextToken(); // get)
+                    def = new Def(false, ident, dimension, dimSizes, null, true);
+                } else {
+                    initval = parseInitVal(false);
+                    def = new Def(false, ident, dimension, dimSizes, initval, false);
+                }
+            } else {
+                def = new Def(false, ident, dimension, dimSizes, null, false);
             }
-            def = new Def(false, ident, dimension, dimSizes, initval);
             printStream("<VarDef>\n");
         }
         return def;
@@ -586,7 +596,8 @@ public class Parser {
         ArrayList<UnaryExp> unaryExps = new ArrayList<>();
 
         Token sym = lexer.visitNextToken();
-        while (sym.getType() == TokenType.MULT || sym.getType() == TokenType.DIV || sym.getType() == TokenType.MOD) {
+        while (sym.getType() == TokenType.MULT || sym.getType() == TokenType.DIV || sym.getType() == TokenType.MOD
+            || sym.getType() == TokenType.BitTand) {
             printStream("<MulExp>\n");
             sym = getNextToken();   //   吃掉* 或/ 或%
             operators.add(sym);

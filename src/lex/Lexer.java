@@ -32,6 +32,7 @@ public class Lexer {
         types.put("printf", TokenType.PRINTFTK);
         types.put("return", TokenType.RETURNTK);
         types.put("void", TokenType.VOIDTK);
+        types.put("bitand", TokenType.BitTand);
 
     }
 

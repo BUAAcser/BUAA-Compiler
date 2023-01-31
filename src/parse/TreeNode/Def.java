@@ -11,13 +11,15 @@ public class Def {
     private int dimension;
     private ArrayList<Exp> dimSizes;
     private InitVal val;
+    private boolean isGetInt;
 
-    public Def(boolean constant, Token ident, int dimension, ArrayList<Exp> dims, InitVal val) {
+    public Def(boolean constant, Token ident, int dimension, ArrayList<Exp> dims, InitVal val, boolean isGetInt) {
         this.isConstant = constant;
         this.ident = ident;
         this.dimension = dimension;
         this.dimSizes = dims;
         this.val = val;
+        this.isGetInt = isGetInt;
     }
     // 对dimSizes数组放心用吧
 
@@ -45,6 +47,9 @@ public class Def {
         this.val = null;
     }
 
+    public boolean getIsGetInt() {
+        return isGetInt;
+    }
     public boolean getIsConstant() {
         return isConstant;
     }

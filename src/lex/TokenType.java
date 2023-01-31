@@ -38,5 +38,6 @@ public enum TokenType {
     LBRACK,
     RBRACK,
     LBRACE,
-    RBRACE
+    RBRACE,
+    BitTand
 }
